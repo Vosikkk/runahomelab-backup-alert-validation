@@ -35,13 +35,33 @@ def db():
 
 def init_db():
     with db() as conn:
-        conn.execute('''CREATE TABLE IF NOT EXISTS validation_sessions (
-            token TEXT PRIMARY KEY,
-            telegram_chat_id TEXT,
-            created_at TEXT NOT NULL,
-            connected_at TEXT,
-            test_completed_at TEXT
-        )''')
+        conn.execute(
+            '''
+            CREATE TABLE IF NOT EXISTS validation_sessions (
+                token TEXT PRIMARY KEY,
+                telegram_chat_id TEXT,
+                created_at TEXT NOT NULL,
+                connected_at TEXT,
+                test_completed_at TEXT,
+                want_at TEXT
+            )
+            '''
+        )
+
+        columns = {
+            row['name']
+            for row in conn.execute(
+                'PRAGMA table_info(validation_sessions)'
+            ).fetchall()
+        }
+
+        if 'want_at' not in columns:
+            conn.execute(
+                '''
+                ALTER TABLE validation_sessions
+                ADD COLUMN want_at TEXT
+                '''
+            )
 
 @app.on_event('startup')
 def startup(): init_db()
@@ -110,16 +130,74 @@ async def telegram_webhook(request: Request):
     text = (message.get('text') or '').strip()
     chat_id = (message.get('chat') or {}).get('id')
 
-    if not chat_id or not text.startswith('/start'):
+    if not chat_id or not text:
+        return {'ok': True}
+
+    chat_id = str(chat_id)
+
+    # --------------------------------
+    # /want
+    # --------------------------------
+
+    if text.lower() == '/want':
+        with db() as conn:
+            row = conn.execute(
+                '''
+                SELECT token
+                FROM validation_sessions
+                WHERE telegram_chat_id=?
+                ORDER BY connected_at DESC
+                LIMIT 1
+                ''',
+                (chat_id,)
+            ).fetchone()
+
+            if not row:
+                await send_telegram(
+                    chat_id,
+                    (
+                        "I couldn't find your test session.\n\n"
+                        "Run the test from runahomelab.com first."
+                    )
+                )
+
+                return {'ok': True}
+
+            conn.execute(
+                '''
+                UPDATE validation_sessions
+                SET want_at=?
+                WHERE token=?
+                ''',
+                (now_iso(), row['token'])
+            )
+
+        await send_telegram(
+            chat_id,
+            (
+                "👍 Got it.\n\n"
+                "I'll count you as someone who'd actually "
+                "connect this to a Proxmox/PBS server."
+            )
+        )
+
+        return {'ok': True}
+
+    # --------------------------------
+    # /start
+    # --------------------------------
+
+    if not text.startswith('/start'):
         return {'ok': True}
 
     parts = text.split(maxsplit=1)
 
     if len(parts) != 2:
         await send_telegram(
-            str(chat_id),
-            'Open the Connect Telegram button on runahomelab.com first.'
+            chat_id,
+            'Open the test on runahomelab.com first.'
         )
+
         return {'ok': True}
 
     token = parts[1].strip()
@@ -136,12 +214,14 @@ async def telegram_webhook(request: Request):
 
         if not row:
             await send_telegram(
-                str(chat_id),
-                'This test link is invalid or expired. Start again on runahomelab.com.'
+                chat_id,
+                (
+                    'This test link is invalid or expired. '
+                    'Start again on runahomelab.com.'
+                )
             )
-            return {'ok': True}
 
-        ts = now_iso()
+            return {'ok': True}
 
         conn.execute(
             '''
@@ -150,11 +230,12 @@ async def telegram_webhook(request: Request):
                 connected_at=?
             WHERE token=?
             ''',
-            (str(chat_id), ts, token)
+            (chat_id, now_iso(), token)
         )
 
+    # Test message
     await send_telegram(
-        str(chat_id),
+        chat_id,
         (
             "✅ Test alert delivered\n\n"
             "This is what you'd get when a Proxmox/PBS "
@@ -167,6 +248,7 @@ async def telegram_webhook(request: Request):
         )
     )
 
+    # Рахуємо completed тільки ПІСЛЯ успішної доставки.
     with db() as conn:
         conn.execute(
             '''
@@ -178,7 +260,6 @@ async def telegram_webhook(request: Request):
         )
 
     return {'ok': True}
-
 
 class ProxmoxWebhookPayload(BaseModel):
     title: str | None = None
