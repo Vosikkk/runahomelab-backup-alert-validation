@@ -9,6 +9,10 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from dotenv import load_dotenv
+PUBLIC_BASE_URL = os.getenv(
+    'PUBLIC_BASE_URL',
+    'http://127.0.0.1:8000'
+).rstrip('/')
 
 load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -61,9 +65,29 @@ def create_session():
 @app.get('/api/session/{token}')
 def session_status(token: str):
     with db() as conn:
-        row = conn.execute('SELECT connected_at,test_completed_at FROM validation_sessions WHERE token=?',(token,)).fetchone()
-    if not row: raise HTTPException(404,'Unknown session')
-    return {'connected': row['connected_at'] is not None, 'test_completed': row['test_completed_at'] is not None}
+        row = conn.execute(
+            '''
+            SELECT connected_at, test_completed_at
+            FROM validation_sessions
+            WHERE token=?
+            ''',
+            (token,)
+        ).fetchone()
+
+    if not row:
+        raise HTTPException(404, 'Unknown session')
+
+    connected = row['connected_at'] is not None
+
+    return {
+        'connected': connected,
+        'test_completed': row['test_completed_at'] is not None,
+        'receiver_url': (
+            f'{PUBLIC_BASE_URL}/i/{token}'
+            if connected
+            else None
+        )
+    }
 
 async def send_telegram(chat_id: str, text: str):
     if not BOT_TOKEN: raise RuntimeError('TELEGRAM_BOT_TOKEN is not configured')
