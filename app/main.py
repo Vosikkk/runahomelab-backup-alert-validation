@@ -153,12 +153,32 @@ async def telegram_webhook(request: Request):
             (str(chat_id), ts, token)
         )
 
+    receiver_url = f"{PUBLIC_BASE_URL}/i/{token}"
+
     await send_telegram(
         str(chat_id),
-        '✅ Backup alerts connected\n\n'
-        'This is what a runahomelab alert would look like:\n\n'
-        '❌ PBS backup FAILED · node pve1 · 02:14\n\n'
-        'No dashboard. Just tell you when the backup breaks.'
+        (
+            "✅ Telegram connected\n\n"
+            "Now connect Proxmox.\n\n"
+            "Open:\n"
+            "Datacenter → Notifications → Targets → Add → Webhook\n\n"
+            "Method:\n"
+            "POST\n\n"
+            "Webhook URL:\n"
+            f"{receiver_url}\n\n"
+            "Header:\n"
+            "Content-Type: application/json\n\n"
+            "Body:\n"
+            "{\n"
+            '  "title": "{{ title }}",\n'
+            '  "message": "{{ message }}",\n'
+            '  "severity": "{{ severity }}",\n'
+            '  "type": "{{ fields.type }}",\n'
+            '  "hostname": "{{ fields.hostname }}",\n'
+            '  "timestamp": "{{ timestamp }}"\n'
+            "}\n\n"
+            "After that, failed backup alerts will arrive here."
+        )
     )
 
     with db() as conn:

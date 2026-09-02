@@ -8,7 +8,7 @@
 
   <meta
     name="description"
-    content="Test a simple Telegram alert for failed Proxmox backups. No dashboard. No agent."
+    content="Get a Telegram alert when a Proxmox backup fails. No dashboard. No agent."
   >
 
   <style>
@@ -21,7 +21,6 @@
       --text: #f4f6f8;
       --muted: #9ba6b2;
       --accent: #f59e0b;
-      --success: #4ade80;
     }
 
     * {
@@ -32,6 +31,7 @@
       margin: 0;
       background: var(--bg);
       color: var(--text);
+
       font-family:
         Inter,
         ui-sans-serif,
@@ -65,12 +65,6 @@
       margin: 0 0 22px;
     }
 
-    h2 {
-      font-size: 28px;
-      letter-spacing: -.025em;
-      margin: 0 0 12px;
-    }
-
     .lead {
       font-size: 20px;
       line-height: 1.55;
@@ -81,14 +75,17 @@
     .alert {
       margin: 38px 0;
       padding: 22px;
+
       border: 1px solid var(--line);
       background: var(--card);
       border-radius: 16px;
+
       font-family:
         ui-monospace,
         SFMono-Regular,
         Menlo,
         monospace;
+
       font-size: 16px;
       line-height: 1.7;
     }
@@ -97,21 +94,19 @@
       color: #fb7185;
     }
 
-    .small {
-      font-size: 14px;
-      color: var(--muted);
-      line-height: 1.55;
-    }
-
     button {
       appearance: none;
       border: 0;
+
       background: var(--accent);
       color: #171006;
+
       font-weight: 800;
       font-size: 17px;
+
       padding: 15px 20px;
       border-radius: 12px;
+
       cursor: pointer;
     }
 
@@ -123,6 +118,7 @@
     #status {
       margin-top: 18px;
       color: var(--muted);
+      min-height: 22px;
     }
 
     .rules {
@@ -131,74 +127,14 @@
       border-top: 1px solid var(--line);
     }
 
-    .rules strong {
-      color: var(--text);
-    }
-
-    .setup {
-      display: none;
-      margin-top: 42px;
-    }
-
-    .connected {
-      color: var(--success);
-      font-weight: 700;
-      margin-bottom: 14px;
-    }
-
-    .step {
-      margin-top: 28px;
-    }
-
-    .step-label {
-      color: var(--muted);
-      font-size: 13px;
-      margin-bottom: 8px;
-    }
-
-    .code-box {
-      position: relative;
-      border: 1px solid var(--line);
-      background: var(--card);
-      border-radius: 12px;
-      padding: 16px;
-      padding-right: 84px;
-
-      font-family:
-        ui-monospace,
-        SFMono-Regular,
-        Menlo,
-        monospace;
-
+    .small {
       font-size: 14px;
-      line-height: 1.55;
-
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
-    }
-
-    .copy {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-
-      padding: 7px 10px;
-      border-radius: 8px;
-
-      font-size: 12px;
-      font-weight: 700;
-
-      background: #252b33;
-      color: var(--text);
-    }
-
-    .copy:hover {
-      background: #303741;
-    }
-
-    .instruction {
       color: var(--muted);
-      line-height: 1.6;
+      line-height: 1.55;
+    }
+
+    .small strong {
+      color: var(--text);
     }
   </style>
 </head>
@@ -211,165 +147,51 @@
     <strong>runahomelab.com</strong> / experimental tool
   </div>
 
-  <div id="intro">
+  <h1>
+    Your backup failed.<br>
+    You should know now.
+  </h1>
 
-    <h1>
-      Your backup failed.<br>
-      You should know now.
-    </h1>
+  <p class="lead">
+    Get one Telegram message when a Proxmox or PBS backup fails.
+    No monitoring dashboard. No CPU graphs. No agent.
+  </p>
 
-    <p class="lead">
-      I'm testing a tiny hosted alert for Proxmox/PBS backups.
-      No monitoring dashboard. No CPU graphs.
-      One Telegram message when a backup fails.
-    </p>
-
-    <div class="alert">
-      <b>❌ PBS backup FAILED</b><br>
-      node pve1 · 02:14
-    </div>
-
-    <button id="connect">
-      Send me a test backup alert
-    </button>
-
-    <div id="status"></div>
-
+  <div class="alert">
+    <b>❌ PBS backup FAILED</b><br>
+    node pve1 · 02:14
   </div>
 
-  <div id="setup" class="setup">
+  <button id="connect">
+    Connect Telegram
+  </button>
 
-    <div class="connected">
-      ✓ Telegram connected
-    </div>
-
-    <h2>Now connect Proxmox</h2>
-
-    <p class="instruction">
-      Your personal receiver is ready.
-      Proxmox will send failed backup notifications here,
-      and we'll forward them to your Telegram.
-    </p>
-
-    <div class="step">
-
-      <div class="step-label">
-        1. In Proxmox open
-      </div>
-
-      <div class="code-box">
-Datacenter → Notifications → Targets → Add → Webhook
-      </div>
-
-    </div>
-
-    <div class="step">
-
-      <div class="step-label">
-        2. Method
-      </div>
-
-      <div class="code-box">
-POST
-      </div>
-
-    </div>
-
-    <div class="step">
-
-      <div class="step-label">
-        3. Webhook URL
-      </div>
-
-      <div class="code-box">
-        <span id="receiver-url"></span>
-
-        <button
-          class="copy"
-          data-copy="receiver-url"
-        >
-          Copy
-        </button>
-      </div>
-
-    </div>
-
-    <div class="step">
-
-      <div class="step-label">
-        4. Header
-      </div>
-
-      <div class="code-box">
-Content-Type: application/json
-      </div>
-
-    </div>
-
-    <div class="step">
-
-      <div class="step-label">
-        5. Body
-      </div>
-
-      <div class="code-box">
-        <span id="webhook-body">{
-  "title": "{{ title }}",
-  "message": "{{ message }}",
-  "severity": "{{ severity }}",
-  "type": "{{ fields.type }}",
-  "hostname": "{{ fields.hostname }}",
-  "timestamp": "{{ timestamp }}"
-}</span>
-
-        <button
-          class="copy"
-          data-copy="webhook-body"
-        >
-          Copy
-        </button>
-      </div>
-
-    </div>
-
-    <div class="alert">
-      When a backup fails, you'll get:<br><br>
-
-      <b>❌ PBS backup FAILED</b><br>
-      node pve1<br>
-      Backup of VM 101 failed
-    </div>
-
-  </div>
+  <div id="status"></div>
 
   <div class="rules">
-
     <p class="small">
-      <strong>Experimental.</strong>
-      This tool stores your Telegram chat ID and timestamps
-      so we can measure whether people actually complete the setup.
-      No monitoring dashboard.
+      <strong>How it works:</strong>
+      connect Telegram, get your personal webhook URL,
+      paste it into Proxmox Notifications,
+      and failed backup alerts will arrive in that Telegram chat.
     </p>
 
+    <p class="small">
+      This experimental tool stores your Telegram chat ID
+      and connection timestamps so we can validate whether
+      people actually use the setup.
+    </p>
   </div>
 
 </main>
 
 <script>
-  const connectButton = document.querySelector('#connect')
+  const button = document.querySelector('#connect')
   const status = document.querySelector('#status')
 
-  const intro = document.querySelector('#intro')
-  const setup = document.querySelector('#setup')
-
-  const receiverUrl = document.querySelector('#receiver-url')
-
-  let currentToken = null
-  let pollingTimer = null
-
-  connectButton.addEventListener('click', async () => {
-    connectButton.disabled = true
-    status.textContent = 'Creating test…'
+  button.addEventListener('click', async () => {
+    button.disabled = true
+    status.textContent = 'Connecting Telegram…'
 
     try {
       const response = await fetch('/api/session', {
@@ -382,136 +204,19 @@ Content-Type: application/json
 
       const data = await response.json()
 
-      currentToken = data.token
-
-      // Зберігаємо token ДО переходу в Telegram.
-      localStorage.setItem(
-        'runahomelab_backup_session',
-        currentToken
-      )
+      if (!data.telegram_url) {
+        throw new Error('Telegram URL missing')
+      }
 
       status.textContent = 'Opening Telegram…'
 
-      // Як було спочатку:
-      // Telegram відкривається в цій самій вкладці.
       window.location.href = data.telegram_url
 
     } catch (error) {
-      connectButton.disabled = false
+      console.error(error)
+
+      button.disabled = false
       status.textContent = 'Something went wrong. Try again.'
-    }
-  })
-
-  async function checkSession() {
-    if (!currentToken) {
-      return
-    }
-
-    try {
-      const response = await fetch(
-        `/api/session/${currentToken}`,
-        {
-          cache: 'no-store'
-        }
-      )
-
-      if (!response.ok) {
-        console.log('Session not found:', response.status)
-        return
-      }
-
-      const data = await response.json()
-
-      console.log('SESSION STATUS:', data)
-
-      if (!data.connected) {
-        status.textContent = 'Waiting for Telegram…'
-        return
-      }
-
-      // Backend поки не повертає receiver_url,
-      // тому будуємо його самі.
-      receiverUrl.textContent =
-        `${window.location.origin}/i/${currentToken}`
-
-      intro.style.display = 'none'
-      setup.style.display = 'block'
-
-      if (pollingTimer) {
-        clearInterval(pollingTimer)
-        pollingTimer = null
-      }
-
-    } catch (error) {
-      console.error('Session check failed:', error)
-    }
-  }
-
-  function startPolling() {
-    if (!currentToken) {
-      return
-    }
-
-    if (pollingTimer) {
-      clearInterval(pollingTimer)
-    }
-
-    checkSession()
-
-    pollingTimer = setInterval(
-      checkSession,
-      1500
-    )
-  }
-
-  document
-    .querySelectorAll('[data-copy]')
-    .forEach(button => {
-      button.addEventListener('click', async () => {
-        const id = button.dataset.copy
-        const element = document.getElementById(id)
-
-        const value = element.textContent.trim()
-
-        await navigator.clipboard.writeText(value)
-
-        const original = button.textContent
-        button.textContent = 'Copied'
-
-        setTimeout(() => {
-          button.textContent = original
-        }, 1200)
-      })
-    })
-
-  function restoreSession() {
-    const savedToken = localStorage.getItem(
-      'runahomelab_backup_session'
-    )
-
-    if (!savedToken) {
-      return
-    }
-
-    currentToken = savedToken
-    startPolling()
-  }
-
-  // Звичайне відкриття / reload сторінки.
-  restoreSession()
-
-  // Повернення назад із Telegram.
-  window.addEventListener('pageshow', () => {
-    restoreSession()
-  })
-
-  // На випадок, якщо браузер просто повернув вкладку у foreground.
-  document.addEventListener('visibilitychange', () => {
-    if (
-      document.visibilityState === 'visible' &&
-      currentToken
-    ) {
-      checkSession()
     }
   })
 </script>
