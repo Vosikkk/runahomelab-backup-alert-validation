@@ -153,31 +153,17 @@ async def telegram_webhook(request: Request):
             (str(chat_id), ts, token)
         )
 
-    receiver_url = f"{PUBLIC_BASE_URL}/i/{token}"
-
     await send_telegram(
         str(chat_id),
         (
-            "✅ Telegram connected\n\n"
-            "Now connect Proxmox.\n\n"
-            "Open:\n"
-            "Datacenter → Notifications → Targets → Add → Webhook\n\n"
-            "Method:\n"
-            "POST\n\n"
-            "Webhook URL:\n"
-            f"{receiver_url}\n\n"
-            "Header:\n"
-            "Content-Type: application/json\n\n"
-            "Body:\n"
-            "{\n"
-            '  "title": "{{ title }}",\n'
-            '  "message": "{{ message }}",\n'
-            '  "severity": "{{ severity }}",\n'
-            '  "type": "{{ fields.type }}",\n'
-            '  "hostname": "{{ fields.hostname }}",\n'
-            '  "timestamp": "{{ timestamp }}"\n'
-            "}\n\n"
-            "After that, failed backup alerts will arrive here."
+            "✅ Test alert delivered\n\n"
+            "This is what you'd get when a Proxmox/PBS "
+            "backup fails:\n\n"
+            "❌ PBS backup FAILED\n"
+            "node pve1 · 02:14\n\n"
+            "No dashboard. Just one message when something breaks.\n\n"
+            "Want this connected to your actual Proxmox backups?\n\n"
+            "Send /want"
         )
     )
 
