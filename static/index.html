@@ -369,36 +369,74 @@ Content-Type: application/json
 
   connectButton.addEventListener('click', async () => {
     connectButton.disabled = true
-    status.textContent = 'Creating test…'
 
-    try {
-      const response = await fetch('/api/session', {
-        method: 'POST'
-      })
+  status.textContent = 'Creating test…'
 
-      if (!response.ok) {
-        throw new Error('Session creation failed')
-      }
+  // Відкриваємо нове вікно одразу по user click,
 
-      const data = await response.json()
+  // щоб браузер не заблокував popup після await.
 
-      currentToken = data.token
+  const telegramWindow = window.open('', '_blank')
 
-      localStorage.setItem(
-        'runahomelab_backup_session',
-        currentToken
-      )
+  try {
 
-      status.textContent = 'Opening Telegram…'
+    const response = await fetch('/api/session', {
 
-      startPolling()
+      method: 'POST'
+
+    })
+
+    if (!response.ok) {
+
+      throw new Error('Session creation failed')
+
+    }
+
+    const data = await response.json()
+
+    currentToken = data.token
+
+    localStorage.setItem(
+
+      'runahomelab_backup_session',
+
+      currentToken
+
+    )
+
+    status.textContent = 'Waiting for Telegram…'
+
+    // Polling залишається працювати на цій сторінці.
+
+    startPolling()
+
+    // Telegram відкриваємо окремо.
+
+    if (telegramWindow) {
+
+      telegramWindow.location.href = data.telegram_url
+
+    } else {
+
+      // fallback, якщо popup заблокований
 
       window.location.href = data.telegram_url
 
-    } catch (error) {
-      connectButton.disabled = false
-      status.textContent = 'Something went wrong. Try again.'
     }
+
+  } catch (error) {
+
+    if (telegramWindow) {
+
+      telegramWindow.close()
+
+    }
+
+    connectButton.disabled = false
+
+    status.textContent = 'Something went wrong. Try again.'
+
+  }
   })
 
   function startPolling() {
@@ -420,34 +458,56 @@ Content-Type: application/json
 
   async function checkSession() {
     if (!currentToken) {
+
+    return
+
+  }
+
+  try {
+
+    const response = await fetch(
+
+      `/api/session/${currentToken}`,
+
+      {
+
+        cache: 'no-store'
+
+      }
+
+    )
+
+    if (!response.ok) {
+
       return
+
     }
 
-    try {
-      const response = await fetch(
-        `/api/session/${currentToken}`
-      )
+    const data = await response.json()
 
-      if (!response.ok) {
-        return
-      }
+    console.log('SESSION STATUS:', data)
 
-      const data = await response.json()
+    if (!data.connected) {
 
-      if (!data.connected) {
-        return
-      }
+      status.textContent = 'Waiting for Telegram…'
 
-      clearInterval(pollingTimer)
+      return
 
-      receiverUrl.textContent = data.receiver_url
-
-      intro.style.display = 'none'
-      setup.style.display = 'block'
-
-    } catch (error) {
-      console.error(error)
     }
+
+    clearInterval(pollingTimer)
+
+    receiverUrl.textContent = data.receiver_url
+
+    intro.style.display = 'none'
+
+    setup.style.display = 'block'
+
+  } catch (error) {
+
+    console.error('Session polling failed:', error)
+
+  }
   }
 
   document.querySelectorAll('[data-copy]').forEach(button => {
