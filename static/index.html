@@ -369,75 +369,83 @@ Content-Type: application/json
 
   connectButton.addEventListener('click', async () => {
     connectButton.disabled = true
+    status.textContent = 'Creating test…'
 
-  status.textContent = 'Creating test…'
+    try {
+      const response = await fetch('/api/session', {
+        method: 'POST'
+      })
 
-  // Відкриваємо нове вікно одразу по user click,
+      if (!response.ok) {
+        throw new Error('Session creation failed')
+      }
 
-  // щоб браузер не заблокував popup після await.
+      const data = await response.json()
 
-  const telegramWindow = window.open('', '_blank')
+      currentToken = data.token
 
-  try {
+      // Зберігаємо token ДО переходу в Telegram.
+      localStorage.setItem(
+        'runahomelab_backup_session',
+        currentToken
+      )
 
-    const response = await fetch('/api/session', {
+      status.textContent = 'Opening Telegram…'
 
-      method: 'POST'
-
-    })
-
-    if (!response.ok) {
-
-      throw new Error('Session creation failed')
-
-    }
-
-    const data = await response.json()
-
-    currentToken = data.token
-
-    localStorage.setItem(
-
-      'runahomelab_backup_session',
-
-      currentToken
-
-    )
-
-    status.textContent = 'Waiting for Telegram…'
-
-    // Polling залишається працювати на цій сторінці.
-
-    startPolling()
-
-    // Telegram відкриваємо окремо.
-
-    if (telegramWindow) {
-
-      telegramWindow.location.href = data.telegram_url
-
-    } else {
-
-      // fallback, якщо popup заблокований
-
+      // Як було спочатку:
+      // Telegram відкривається в цій самій вкладці.
       window.location.href = data.telegram_url
 
+    } catch (error) {
+      connectButton.disabled = false
+      status.textContent = 'Something went wrong. Try again.'
     }
-
-  } catch (error) {
-
-    if (telegramWindow) {
-
-      telegramWindow.close()
-
-    }
-
-    connectButton.disabled = false
-
-    status.textContent = 'Something went wrong. Try again.'
-
-  }
   })
+
+  async function checkSession() {
+    if (!currentToken) {
+      return
+    }
+
+    try {
+      const response = await fetch(
+        `/api/session/${currentToken}`,
+        {
+          cache: 'no-store'
+        }
+      )
+
+      if (!response.ok) {
+        console.log('Session not found:', response.status)
+        return
+      }
+
+      const data = await response.json()
+
+      console.log('SESSION STATUS:', data)
+
+      if (!data.connected) {
+        status.textContent = 'Waiting for Telegram…'
+        return
+      }
+
+      // Backend поки не повертає receiver_url,
+      // тому будуємо його самі.
+      receiverUrl.textContent =
+        `${window.location.origin}/i/${currentToken}`
+
+      intro.style.display = 'none'
+      setup.style.display = 'block'
+
+      if (pollingTimer) {
+        clearInterval(pollingTimer)
+        pollingTimer = null
+      }
+
+    } catch (error) {
+      console.error('Session check failed:', error)
+    }
+  }
 
   function startPolling() {
     if (!currentToken) {
@@ -456,87 +464,56 @@ Content-Type: application/json
     )
   }
 
-  async function checkSession() {
-    if (!currentToken) {
+  document
+    .querySelectorAll('[data-copy]')
+    .forEach(button => {
+      button.addEventListener('click', async () => {
+        const id = button.dataset.copy
+        const element = document.getElementById(id)
 
-    return
+        const value = element.textContent.trim()
 
-  }
+        await navigator.clipboard.writeText(value)
 
-  try {
+        const original = button.textContent
+        button.textContent = 'Copied'
 
-    const response = await fetch(
+        setTimeout(() => {
+          button.textContent = original
+        }, 1200)
+      })
+    })
 
-      `/api/session/${currentToken}`,
-
-      {
-
-        cache: 'no-store'
-
-      }
-
+  function restoreSession() {
+    const savedToken = localStorage.getItem(
+      'runahomelab_backup_session'
     )
 
-    if (!response.ok) {
-
+    if (!savedToken) {
       return
-
     }
 
-    const data = await response.json()
-
-    console.log('SESSION STATUS:', data)
-
-    if (!data.connected) {
-
-      status.textContent = 'Waiting for Telegram…'
-
-      return
-
-    }
-
-    clearInterval(pollingTimer)
-
-    receiverUrl.textContent = data.receiver_url
-
-    intro.style.display = 'none'
-
-    setup.style.display = 'block'
-
-  } catch (error) {
-
-    console.error('Session polling failed:', error)
-
-  }
-  }
-
-  document.querySelectorAll('[data-copy]').forEach(button => {
-    button.addEventListener('click', async () => {
-      const id = button.dataset.copy
-      const element = document.getElementById(id)
-
-      const value = element.textContent.trim()
-
-      await navigator.clipboard.writeText(value)
-
-      const original = button.textContent
-
-      button.textContent = 'Copied'
-
-      setTimeout(() => {
-        button.textContent = original
-      }, 1200)
-    })
-  })
-
-  const savedToken = localStorage.getItem(
-    'runahomelab_backup_session'
-  )
-
-  if (savedToken) {
     currentToken = savedToken
     startPolling()
   }
+
+  // Звичайне відкриття / reload сторінки.
+  restoreSession()
+
+  // Повернення назад із Telegram.
+  window.addEventListener('pageshow', () => {
+    restoreSession()
+  })
+
+  // На випадок, якщо браузер просто повернув вкладку у foreground.
+  document.addEventListener('visibilitychange', () => {
+    if (
+      document.visibilityState === 'visible' &&
+      currentToken
+    ) {
+      checkSession()
+    }
+  })
 </script>
 
 </body>
